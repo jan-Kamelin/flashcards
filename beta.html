@@ -29,12 +29,22 @@
         button {
             margin: 5px;
         }
-        #new-card-form {
+        #new-card-form, #new-pack-form {
             margin-top: 20px;
+        }
+        #pack-selector {
+            margin-bottom: 20px;
         }
     </style>
 </head>
 <body>
+    <div id="pack-selector">
+        <h3>Select Flashcard Pack</h3>
+        <select id="pack-select">
+        </select>
+        <button id="new-pack">New Pack</button>
+    </div>
+
     <div id="flashcard-container">
         <div id="flashcard">
             <div id="question"></div>
@@ -60,11 +70,46 @@
         <button type="submit">Add Card</button>
     </form>
 
+    <div id="new-pack-form" class="hidden">
+        <h3>Create New Flashcard Pack</h3>
+        <label for="new-pack-name">Pack Name:</label>
+        <input type="text" id="new-pack-name" required>
+        <br>
+        <button id="create-pack">Create Pack</button>
+    </div>
+
     <script>
-        let flashcards = JSON.parse(localStorage.getItem('flashcards')) || [];
-        let currentCardIndex = -1;
+        let flashcardPacks = JSON.parse(localStorage.getItem('flashcardPacks')) || {};
+        let currentPack = null;
+
+        function savePacks() {
+            localStorage.setItem('flashcardPacks', JSON.stringify(flashcardPacks));
+        }
+
+        function loadPackOptions() {
+            const packSelect = document.getElementById('pack-select');
+            packSelect.innerHTML = '';
+            Object.keys(flashcardPacks).forEach(packName => {
+                const option = document.createElement('option');
+                option.value = packName;
+                option.textContent = packName;
+                packSelect.appendChild(option);
+            });
+
+            if (Object.keys(flashcardPacks).length > 0) {
+                currentPack = packSelect.value;
+                showNextCard();
+            } else {
+                currentPack = null;
+                document.getElementById('flashcard-container').classList.add('hidden');
+                alert('No flashcard packs available. Please create a new pack.');
+            }
+        }
 
         function showNextCard() {
+            if (!currentPack) return;
+
+            const flashcards = flashcardPacks[currentPack];
             const now = new Date();
             const dueCards = flashcards.filter(card => new Date(card.nextReview) <= now);
             if (dueCards.length === 0) {
@@ -72,8 +117,8 @@
                 return;
             }
 
-            currentCardIndex = flashcards.indexOf(dueCards[0]);
-            const card = flashcards[currentCardIndex];
+            const card = dueCards[0];
+            const cardIndex = flashcards.indexOf(card);
             document.getElementById('question').textContent = card.question;
             document.getElementById('answer').textContent = card.answer;
             document.getElementById('answer').classList.add('hidden');
@@ -83,45 +128,70 @@
             document.getElementById('good').classList.add('hidden');
             document.getElementById('hard').classList.add('hidden');
             document.getElementById('again').classList.add('hidden');
+
+            document.getElementById('show-answer').onclick = () => {
+                document.getElementById('answer').classList.remove('hidden');
+                document.getElementById('show-answer').classList.add('hidden');
+                document.getElementById('easy').classList.remove('hidden');
+                document.getElementById('good').classList.remove('hidden');
+                document.getElementById('hard').classList.remove('hidden');
+                document.getElementById('again').classList.remove('hidden');
+            };
+
+            function scheduleNextReview(intervalMinutes) {
+                card.nextReview = new Date(new Date().getTime() + intervalMinutes * 60000).toISOString();
+                flashcardPacks[currentPack][cardIndex] = card;
+                savePacks();
+                showNextCard();
+            }
+
+            document.getElementById('easy').onclick = () => scheduleNextReview(2880); // 2 days
+            document.getElementById('good').onclick = () => scheduleNextReview(1440); // 1 day
+            document.getElementById('hard').onclick = () => scheduleNextReview(10); // 10 minutes
+            document.getElementById('again').onclick = () => scheduleNextReview(5); // 5 minutes
         }
 
-        function scheduleNextReview(intervalMinutes) {
-            const card = flashcards[currentCardIndex];
-            const now = new Date();
-            card.nextReview = new Date(now.getTime() + intervalMinutes * 60000).toISOString();
-            localStorage.setItem('flashcards', JSON.stringify(flashcards));
+        document.getElementById('pack-select').addEventListener('change', function() {
+            currentPack = this.value;
             showNextCard();
-        }
-
-        document.getElementById('show-answer').addEventListener('click', () => {
-            document.getElementById('answer').classList.remove('hidden');
-            document.getElementById('show-answer').classList.add('hidden');
-            document.getElementById('easy').classList.remove('hidden');
-            document.getElementById('good').classList.remove('hidden');
-            document.getElementById('hard').classList.remove('hidden');
-            document.getElementById('again').classList.remove('hidden');
         });
 
-        document.getElementById('easy').addEventListener('click', () => scheduleNextReview(2880)); // 2 days
-        document.getElementById('good').addEventListener('click', () => scheduleNextReview(1440)); // 1 day
-        document.getElementById('hard').addEventListener('click', () => scheduleNextReview(10)); // 10 minutes
-        document.getElementById('again').addEventListener('click', () => scheduleNextReview(5)); // 5 minutes
+        document.getElementById('new-pack').addEventListener('click', () => {
+            document.getElementById('new-pack-form').classList.remove('hidden');
+        });
+
+        document.getElementById('create-pack').addEventListener('click', () => {
+            const newPackName = document.getElementById('new-pack-name').value.trim();
+            if (newPackName && !flashcardPacks[newPackName]) {
+                flashcardPacks[newPackName] = [];
+                savePacks();
+                loadPackOptions();
+                document.getElementById('new-pack-form').classList.add('hidden');
+                document.getElementById('new-pack-form').reset();
+            } else {
+                alert('Pack name already exists or is invalid.');
+            }
+        });
 
         document.getElementById('new-card-form').addEventListener('submit', (e) => {
             e.preventDefault();
+            if (!currentPack) {
+                alert('Please select or create a flashcard pack first.');
+                return;
+            }
             const newQuestion = document.getElementById('new-question').value;
             const newAnswer = document.getElementById('new-answer').value;
-            flashcards.push({
+            flashcardPacks[currentPack].push({
                 question: newQuestion,
                 answer: newAnswer,
                 nextReview: new Date().toISOString() // Review immediately
             });
-            localStorage.setItem('flashcards', JSON.stringify(flashcards));
+            savePacks();
             document.getElementById('new-card-form').reset();
             showNextCard();
         });
 
-        showNextCard();
+        loadPackOptions();
     </script>
 </body>
 </html>
