@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Flashcard App</title>
     <style>
-        /* Add your styling here */
         body {
             font-family: Arial, sans-serif;
             display: flex;
@@ -24,6 +23,18 @@
         #ratingButtons, #nextCard {
             margin-top: 10px;
         }
+        #addCardForm {
+            margin-top: 20px;
+        }
+        #addCardForm input {
+            margin: 5px 0;
+            padding: 5px;
+            width: 100%;
+        }
+        #addCardForm button {
+            margin-top: 10px;
+            padding: 5px 10px;
+        }
     </style>
 </head>
 <body>
@@ -41,6 +52,13 @@
     </div>
     <button id="nextCard" style="display:none;">Next Card</button>
     <br>
+    <div id="addCardForm">
+        <h2>Add a New Flashcard</h2>
+        <input type="text" id="newQuestion" placeholder="Question">
+        <input type="text" id="newAnswer" placeholder="Answer">
+        <button id="addCardButton">Add Card</button>
+    </div>
+    <br>
     <button id="exportButton">Export Data</button>
 
     <script>
@@ -57,6 +75,9 @@
         const ratingButtons = document.getElementById('ratingButtons');
         const nextCardButton = document.getElementById('nextCard');
         const createPackButton = document.getElementById('createPack');
+        const addCardButton = document.getElementById('addCardButton');
+        const newQuestion = document.getElementById('newQuestion');
+        const newAnswer = document.getElementById('newAnswer');
         const exportButton = document.getElementById('exportButton');
 
         // Populate pack select options
@@ -144,6 +165,29 @@
                 loadPack();
             } else if (flashcardPacks[packName]) {
                 alert("A pack with that name already exists.");
+            }
+        });
+
+        // Add a new card to the selected pack
+        addCardButton.addEventListener('click', () => {
+            const questionText = newQuestion.value.trim();
+            const answerText = newAnswer.value.trim();
+            if (questionText && answerText) {
+                let selectedPack = packSelect.value;
+                if (selectedPack) {
+                    flashcardPacks[selectedPack].push({ question: questionText, answer: answerText, rating: 0 });
+                    savePacksToLocalStorage();
+                    newQuestion.value = '';
+                    newAnswer.value = '';
+                    alert("Flashcard added successfully!");
+                    if (flashcardPacks[selectedPack].length === 1) {
+                        loadPack(); // Reload pack if it's the first card
+                    }
+                } else {
+                    alert("Please select or create a pack first.");
+                }
+            } else {
+                alert("Please enter both a question and an answer.");
             }
         });
 
