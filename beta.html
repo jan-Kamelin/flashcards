@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flashcard App</title>
+    <style>
+        /* Add your styling here */
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+        #flashcard {
+            border: 1px solid #ccc;
+            padding: 20px;
+            margin: 20px;
+            text-align: center;
+            width: 300px;
+            cursor: pointer;
+        }
+        #ratingButtons, #nextCard {
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Flashcard App</h1>
+    <select id="packSelect"></select>
+    <button id="createPack">Create New Pack</button>
+    <div id="flashcard">
+        <div id="question"></div>
+        <div id="answer" style="display:none;"></div>
+    </div>
+    <div id="ratingButtons" style="display:none;">
+        <button onclick="rateCard(1)">Easy</button>
+        <button onclick="rateCard(2)">Medium</button>
+        <button onclick="rateCard(3)">Hard</button>
+    </div>
+    <button id="nextCard" style="display:none;">Next Card</button>
+    <br>
+    <button id="exportButton">Export Data</button>
+
+    <script>
+        let flashcardPacks = JSON.parse(localStorage.getItem('flashcardPacks')) || {};
+
+        let currentPack = [];
+        let currentIndex = 0;
+        let isFlipped = false;
+
+        const packSelect = document.getElementById('packSelect');
+        const flashcard = document.getElementById('flashcard');
+        const question = document.getElementById('question');
+        const answer = document.getElementById('answer');
+        const ratingButtons = document.getElementById('ratingButtons');
+        const nextCardButton = document.getElementById('nextCard');
+        const createPackButton = document.getElementById('createPack');
+        const exportButton = document.getElementById('exportButton');
+
+        // Populate pack select options
+        function populatePackSelect() {
+            packSelect.innerHTML = '';
+            for (let pack in flashcardPacks) {
+                let option = document.createElement('option');
+                option.value = pack;
+                option.textContent = pack;
+                packSelect.appendChild(option);
+            }
+        }
+
+        // Load selected pack
+        function loadPack() {
+            let selectedPack = packSelect.value;
+            currentPack = flashcardPacks[selectedPack] || [];
+            currentIndex = 0;
+            if (currentPack.length > 0) {
+                displayCard();
+            } else {
+                question.textContent = "No flashcards in this pack.";
+                answer.style.display = 'none';
+                ratingButtons.style.display = 'none';
+                nextCardButton.style.display = 'none';
+            }
+            isFlipped = false;
+        }
+
+        // Display the current flashcard
+        function displayCard() {
+            let currentCard = currentPack[currentIndex];
+            question.textContent = currentCard.question;
+            answer.textContent = currentCard.answer;
+            answer.style.display = 'none';
+            question.style.display = 'block';
+            ratingButtons.style.display = 'none';
+            nextCardButton.style.display = 'none';
+        }
+
+        // Flip the flashcard
+        flashcard.addEventListener('click', () => {
+            if (currentPack.length === 0) return;
+            
+            if (isFlipped) {
+                answer.style.display = 'none';
+                question.style.display = 'block';
+            } else {
+                answer.style.display = 'block';
+                question.style.display = 'none';
+                ratingButtons.style.display = 'block';
+                nextCardButton.style.display = 'none';
+            }
+            isFlipped = !isFlipped;
+        });
+
+        // Rate the flashcard
+        function rateCard(rating) {
+            currentPack[currentIndex].rating = rating;
+            savePacksToLocalStorage();
+            nextCardButton.style.display = 'block';
+            ratingButtons.style.display = 'none';
+        }
+
+        // Go to the next card
+        nextCardButton.addEventListener('click', () => {
+            currentIndex = (currentIndex + 1) % currentPack.length;
+            displayCard();
+            isFlipped = false;
+        });
+
+        // Save flashcard packs to local storage
+        function savePacksToLocalStorage() {
+            localStorage.setItem('flashcardPacks', JSON.stringify(flashcardPacks));
+        }
+
+        // Create a new flashcard pack
+        createPackButton.addEventListener('click', () => {
+            let packName = prompt("Enter a name for the new pack:");
+            if (packName && !flashcardPacks[packName]) {
+                flashcardPacks[packName] = [];
+                populatePackSelect();
+                savePacksToLocalStorage();
+                packSelect.value = packName;
+                loadPack();
+            } else if (flashcardPacks[packName]) {
+                alert("A pack with that name already exists.");
+            }
+        });
+
+        // Export all data
+        exportButton.addEventListener('click', () => {
+            const dataStr = JSON.stringify(flashcardPacks, null, 2);
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'flashcards.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        });
+
+        // Initial setup
+        populatePackSelect();
+        packSelect.addEventListener('change', loadPack);
+        loadPack();
+    </script>
+</body>
+</html>
